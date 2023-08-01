@@ -19,15 +19,8 @@ type ContractWithDebugInfo struct {
 	DebugInfo *compiler.DebugInfo
 }
 
-// contracts caches the compiled contracts from FS across multiple tests.
-var contracts = make(map[string]*neotest.Contract)
-
 // CompileFile compiles a contract from the file and returns its NEF, manifest, hash and debug information.
 func CompileFile(t testing.TB, sender util.Uint160, srcPath string, configPath string) *ContractWithDebugInfo {
-	if c, ok := contracts[srcPath]; ok {
-		return c
-	}
-
 	// nef.NewFile() cares about version a lot.
 	config.Version = "neotest"
 
@@ -56,7 +49,6 @@ func CompileFile(t testing.TB, sender util.Uint160, srcPath string, configPath s
 		NEF:      ne,
 		Manifest: m,
 	}
-	contracts[srcPath] = c
 	return &ContractWithDebugInfo{
 		Contract:  c,
 		DebugInfo: di,
