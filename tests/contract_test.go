@@ -4,6 +4,7 @@ import (
 	"path"
 	"testing"
 
+	"git.frostfs.info/TrueCloudLab/contract-coverage-primer/covertest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -24,7 +25,8 @@ func newExecutor(t *testing.T) *neotest.Executor {
 
 func TestContract(t *testing.T) {
 	e := newExecutor(t)
-	ctr := neotest.CompileFile(t, e.CommitteeHash, ctrPath, path.Join(ctrPath, "config.yml"))
+	ctrDI := covertest.CompileFile(t, e.CommitteeHash, ctrPath, path.Join(ctrPath, "config.yml"))
+	ctr := ctrDI.Contract
 	e.DeployContract(t, ctr, nil)
 	inv := e.CommitteeInvoker(ctr.Hash)
 
