@@ -11,7 +11,7 @@ import (
 
 // InstrHash maps Instruction with its Script Hash.
 type InstrHash struct {
-	Num         int
+	Offset      int
 	Instruction opcode.Opcode
 	ScriptHash  util.Uint160
 }
@@ -44,7 +44,7 @@ func Run(v *vm.VM) ([]InstrHash, error) {
 		case v.State() == vmstate.None:
 			nStr, curInstr := v.Context().NextInstr()
 			ops = append(ops, InstrHash{
-				Num:         nStr,
+				Offset:      nStr,
 				Instruction: curInstr,
 				ScriptHash:  v.Context().ScriptHash(),
 			})
