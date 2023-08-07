@@ -1,11 +1,14 @@
 package contract
 
 import (
+	"errors"
+	"math/rand"
 	"path"
 	"testing"
 
 	"git.frostfs.info/TrueCloudLab/contract-coverage-primer/covertest"
 	"github.com/davecgh/go-spew/spew"
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -52,23 +55,31 @@ func TestRun(t *testing.T) {
 	ctrDI := covertest.CompileFile(t, e.CommitteeHash, ctrPath, path.Join(ctrPath, "config.yml"))
 	e.DeployContract(t, ctrDI.Contract, nil)
 
+	startOffsetPutNumber, err := getStartOffset(ctrDI.DebugInfo, "PutNumber")
+	require.NoError(t, err)
+
+	hasResult, err := hasResult(ctrDI.DebugInfo, "PutNumber")
+	require.NoError(t, err)
+
+	someNum := getNumToPut()
+
 	// setting up a VM for covertest.Run()
-	covertestRunVM := setUpVMForPut(t, e, ctrDI.Contract, false, 101, 2, invalidKey)
-	res, err := covertest.Run(covertestRunVM)
-	spew.Println("Printing collected instructions:")
+	covertestRunVM := setUpVMForPut(t, e, ctrDI.Contract, hasResult, startOffsetPutNumber, someNum, invalidKey)
+	res, covErr := covertest.Run(covertestRunVM)
+	t.Log("Printing collected instructions:")
 	spew.Dump(res)
-	spew.Println("covertest.Run() returned an error: ", err)
+	t.Log("covertest.Run() returned an error: ", covErr)
 
 	// setting up a VM for vm.Run()
-	origRunVM := setUpVMForPut(t, e, ctrDI.Contract, false, 101, 2, invalidKey)
+	origRunVM := setUpVMForPut(t, e, ctrDI.Contract, hasResult, startOffsetPutNumber, someNum, invalidKey)
 	runerr := origRunVM.Run()
-	spew.Println("vm.Run() returned an error: ", err)
+	t.Log("vm.Run() returned an error: ", covErr)
 
 	//check if errors are the same
-	spew.Println("Are errors the same? ", runerr.Error() == runerr.Error())
+	require.Equal(t, runerr.Error(), covErr.Error())
 
 	//check if the number of elements on the stack is the same
-	spew.Println("Is the number of elements on the stack the same? ", origRunVM.Estack().Len() == covertestRunVM.Estack().Len())
+	require.Equal(t, origRunVM.Estack().Len(), covertestRunVM.Estack().Len())
 }
 
 func setUpVMForPut(t *testing.T, e *neotest.Executor, contract *neotest.Contract, hasResult bool, methodOff int, num int, key []byte) (v *vm.VM) {
@@ -78,4 +89,29 @@ func setUpVMForPut(t *testing.T, e *neotest.Executor, contract *neotest.Contract
 	ic.VM.Context().Estack().PushVal(num)
 	ic.VM.Context().Estack().PushVal(key)
 	return ic.VM
+}
+
+func getStartOffset(di *compiler.DebugInfo, methodID string) (int, error) {
+	for _, method := range di.Methods {
+		if method.ID == methodID {
+			return int(method.Range.Start), nil
+		}
+	}
+	return 0, errors.New("Method not found")
+}
+
+func hasResult(di *compiler.DebugInfo, methodID string) (bool, error) {
+	for _, method := range di.Methods {
+		if method.ID == methodID {
+			if method.ReturnType == "Void" {
+				return false, nil
+			}
+			return true, nil
+		}
+	}
+	return false, errors.New("Method not found")
+}
+
+func getNumToPut() int {
+	return rand.Intn(100)
 }
