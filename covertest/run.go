@@ -9,7 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 )
 
-// InstrHash maps Instruction with its Script Hash.
+// InstrHash maps instruction with scripthash of a contract it belongs to.
 type InstrHash struct {
 	Offset      int
 	Instruction opcode.Opcode
@@ -17,9 +17,9 @@ type InstrHash struct {
 }
 
 // Run starts execution of the loaded program and accumulates all seen opcodes
-// together with the scripthash they belong to.
+// together with the scripthash of a contract they belong to.
+// Original vm.Run(): https://github.com/nspcc-dev/neo-go/blob/v0.101.3/pkg/vm/vm.go#L418
 func Run(v *vm.VM) ([]InstrHash, error) {
-
 	if !v.Ready() {
 		return nil, errors.New("no program loaded")
 	}

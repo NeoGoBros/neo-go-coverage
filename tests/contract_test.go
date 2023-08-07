@@ -20,7 +20,7 @@ import (
 
 const ctrPath = "../impulse"
 
-// Key for tests
+// keys for tests
 var (
 	validKey   = []byte{1, 2, 3, 4, 5}
 	invalidKey = []byte{1, 2, 3}
@@ -63,22 +63,22 @@ func TestRun(t *testing.T) {
 
 	someNum := getNumToPut()
 
-	// setting up a VM for covertest.Run()
+	// set up a VM for covertest.Run()
 	covertestRunVM := setUpVMForPut(t, e, ctrDI.Contract, hasResult, startOffsetPutNumber, someNum, invalidKey)
 	res, covErr := covertest.Run(covertestRunVM)
 	t.Log("Printing collected instructions:")
 	spew.Dump(res)
 	t.Log("covertest.Run() returned an error: ", covErr)
 
-	// setting up a VM for vm.Run()
+	// set up a VM for vm.Run()
 	origRunVM := setUpVMForPut(t, e, ctrDI.Contract, hasResult, startOffsetPutNumber, someNum, invalidKey)
 	runerr := origRunVM.Run()
 	t.Log("vm.Run() returned an error: ", covErr)
 
-	//check if errors are the same
+	// check if errors are the same
 	require.Equal(t, runerr.Error(), covErr.Error())
 
-	//check if the number of elements on the stack is the same
+	// check if the number of elements on the stack is the same
 	require.Equal(t, origRunVM.Estack().Len(), covertestRunVM.Estack().Len())
 }
 
