@@ -36,7 +36,7 @@ func TestContract(t *testing.T) {
 	ctrDI := covertest.CompileFile(t, e.CommitteeHash, ctrPath, path.Join(ctrPath, "config.yml"))
 	ctr := ctrDI.Contract
 	e.DeployContract(t, ctr, nil)
-	inv := e.CommitteeInvoker(ctr.Hash)
+	inv := covertest.CommitteeInvoker(e, ctr.Hash)
 
 	// test get without put
 	inv.InvokeFail(t, "Cannot get number", "getNumber", validKey)
@@ -48,6 +48,7 @@ func TestContract(t *testing.T) {
 	// test invalid key
 	inv.InvokeFail(t, "Invalid key size", "putNumber", invalidKey, 42)
 	inv.InvokeFail(t, "Invalid key size", "getNumber", invalidKey)
+	spew.Dump(inv.Methods)
 }
 
 func TestRun(t *testing.T) {
