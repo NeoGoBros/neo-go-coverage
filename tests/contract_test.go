@@ -48,7 +48,8 @@ func TestContract(t *testing.T) {
 	// test invalid key
 	inv.InvokeFail(t, "Invalid key size", "putNumber", invalidKey, 42)
 	inv.InvokeFail(t, "Invalid key size", "getNumber", invalidKey)
-	spew.Dump(inv.Methods)
+	// spew.Dump(inv.Methods)
+	inv.MakeCoverage(t, ctrDI, "contract.go", "c.out")
 }
 
 func TestRun(t *testing.T) {
