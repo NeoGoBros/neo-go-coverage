@@ -14,14 +14,14 @@ import (
 var mu sync.Mutex
 
 type coverline struct {
-	Doc       string
-	Opcode    int
-	StartLine int
-	StartCol  int
-	EndLine   int
-	EndCol    int
-	WTFnumber int
-	IsCovered bool
+	Doc        string
+	Opcode     int
+	StartLine  int
+	StartCol   int
+	EndLine    int
+	EndCol     int
+	Statements int
+	IsCovered  bool
 }
 
 // MakeCoverage generates an output file with coverage info in correct format.
@@ -59,14 +59,14 @@ func getSeqPoints(t testing.TB, di *compiler.DebugInfo, docs []int) []coverline 
 		for _, seqPoint := range method.SeqPoints {
 			if isValidDocument(seqPoint.Document, docs) && seqPoint.Opcode < int(maxLine) {
 				res = append(res, coverline{
-					Doc:       di.Documents[seqPoint.Document],
-					Opcode:    seqPoint.Opcode,
-					StartLine: seqPoint.StartLine,
-					StartCol:  seqPoint.StartCol,
-					EndLine:   seqPoint.EndLine,
-					EndCol:    seqPoint.EndCol,
-					WTFnumber: 1,
-					IsCovered: false,
+					Doc:        di.Documents[seqPoint.Document],
+					Opcode:     seqPoint.Opcode,
+					StartLine:  seqPoint.StartLine,
+					StartCol:   seqPoint.StartCol,
+					EndLine:    seqPoint.EndLine,
+					EndCol:     seqPoint.EndCol,
+					Statements: 1,
+					IsCovered:  false,
 				})
 			}
 		}
@@ -120,7 +120,7 @@ func printToFile(t testing.TB, cov []coverline, name string) {
 		if info.IsCovered {
 			covered++
 		}
-		line := fmt.Sprintf("%s:%d.%d,%d.%d %d %d\n", info.Doc, info.StartLine, info.StartCol, info.EndLine, info.EndCol, info.WTFnumber, covered)
+		line := fmt.Sprintf("%s:%d.%d,%d.%d %d %d\n", info.Doc, info.StartLine, info.StartCol, info.EndLine, info.EndCol, info.Statements, covered)
 		_, err = f.WriteString(line)
 		require.NoError(t, err)
 	}
