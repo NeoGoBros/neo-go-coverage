@@ -24,7 +24,7 @@ type coverline struct {
 	IsCovered bool
 }
 
-// MakeCoverage generates an output file with coverage info in correct format
+// MakeCoverage generates an output file with coverage info in correct format.
 func (c *ContractInvoker) MakeCoverage(t testing.TB, ctrdi *ContractWithDebugInfo, ctrPath string, fileName string) {
 	docs := getDocuments(t, ctrdi.DebugInfo.Documents, ctrPath)
 	cov := getSeqPoints(t, ctrdi.DebugInfo, docs)
@@ -34,6 +34,7 @@ func (c *ContractInvoker) MakeCoverage(t testing.TB, ctrdi *ContractWithDebugInf
 	printToFile(t, cov, fileName)
 }
 
+// getDocuments returns compiler.DebugInfo.Documents indexes which contain specific substring.
 func getDocuments(t testing.TB, docs []string, substr string) []int {
 	res := make([]int, 0, len(docs))
 
@@ -49,6 +50,7 @@ func getDocuments(t testing.TB, docs []string, substr string) []int {
 	return res
 }
 
+// getSeqPoints accumulates sequence points from every method in compiler.DebugInfo.Methods which belong to specified documents.
 func getSeqPoints(t testing.TB, di *compiler.DebugInfo, docs []int) []coverline {
 	res := make([]coverline, 0, 10)
 
@@ -72,6 +74,7 @@ func getSeqPoints(t testing.TB, di *compiler.DebugInfo, docs []int) []coverline 
 	return res
 }
 
+// isValidDocument checks if document index exists in an array of document indexes.
 func isValidDocument(iDocToCheck int, docs []int) bool {
 	for _, iDoc := range docs {
 		if iDoc == iDocToCheck {
@@ -81,18 +84,18 @@ func isValidDocument(iDocToCheck int, docs []int) bool {
 	return false
 }
 
+// countInstructions finds for every instruction a corresponding sequence point and sets IsCovered flag to true.
 func countInstructions(cov []coverline, codes []InstrHash) {
 	for i := 0; i < len(cov); i++ {
 		for _, code := range codes {
 			if code.Offset == cov[i].Opcode {
 				cov[i].IsCovered = true
-				//cov[i].WTFnumber++
-				//break
 			}
 		}
 	}
 }
 
+// printToFile writes coverlines to file.
 func printToFile(t testing.TB, cov []coverline, name string) {
 	mu.Lock()
 	defer mu.Unlock()
