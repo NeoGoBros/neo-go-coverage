@@ -86,7 +86,7 @@ func isValidDocument(iDocToCheck int, docs []int) bool {
 
 // countInstructions finds for every instruction a corresponding sequence point and sets IsCovered flag to true.
 func countInstructions(cov []coverline, codes []InstrHash) {
-	for i := 0; i < len(cov); i++ {
+	for i := range cov {
 		for _, code := range codes {
 			if code.Offset == cov[i].Opcode {
 				cov[i].IsCovered = true
