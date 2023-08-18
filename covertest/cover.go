@@ -6,32 +6,36 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/stretchr/testify/require"
 )
 
-var mu sync.Mutex
-
-type coverline struct {
-	Doc        string
-	Opcode     int
-	StartLine  int
-	StartCol   int
-	EndLine    int
-	EndCol     int
-	Statements int
-	IsCovered  bool
+type Cover struct {
+	sync.Mutex
+	testing.Cover
+	Opcodes map[string][]int
 }
 
+var cover = &Cover{}
+
 // MakeCoverage generates an output file with coverage info in correct format.
-func (c *ContractInvoker) MakeCoverage(t testing.TB, ctrdi *ContractWithDebugInfo, ctrPath string, fileName string) {
-	docs := getDocuments(t, ctrdi.DebugInfo.Documents, ctrPath)
-	cov := getSeqPoints(t, ctrdi.DebugInfo, docs)
-	for _, iMethod := range c.Methods {
-		countInstructions(cov, iMethod.Instructions)
+func (c *ContractInvoker) MakeCoverage(t testing.TB, ctrdi *ContractWithDebugInfo, substr string, fileName string) {
+	cover.Lock()
+	defer cover.Unlock()
+	if cover.Opcodes == nil {
+		cover.Opcodes = make(map[string][]int)
+		cover.Blocks = make(map[string][]testing.CoverBlock)
+		cover.Counters = make(map[string][]uint32)
 	}
-	printToFile(t, cov, fileName)
+
+	docs := getDocuments(t, ctrdi.DebugInfo.Documents, substr)
+	setBlocks(ctrdi.DebugInfo, docs)
+	for _, iMethod := range c.Methods {
+		countInstructions(ctrdi.DebugInfo.Documents, docs, iMethod.Instructions)
+	}
+	printToFile(t, fileName)
 }
 
 // getDocuments returns compiler.DebugInfo.Documents indexes which contain specific substring.
@@ -50,28 +54,30 @@ func getDocuments(t testing.TB, docs []string, substr string) []int {
 	return res
 }
 
-// getSeqPoints accumulates sequence points from every method in compiler.DebugInfo.Methods which belong to specified documents.
-func getSeqPoints(t testing.TB, di *compiler.DebugInfo, docs []int) []coverline {
-	res := make([]coverline, 0, 10)
-
+// setBlocks extracts sequence points for every specific document
+// from compiler.DebugInfo and stores them in testing.Cover format
+func setBlocks(di *compiler.DebugInfo, docs []int) {
 	for _, method := range di.Methods {
-		maxLine := method.Range.End
 		for _, seqPoint := range method.SeqPoints {
-			if isValidDocument(seqPoint.Document, docs) && seqPoint.Opcode < int(maxLine) {
-				res = append(res, coverline{
-					Doc:        di.Documents[seqPoint.Document],
-					Opcode:     seqPoint.Opcode,
-					StartLine:  seqPoint.StartLine,
-					StartCol:   seqPoint.StartCol,
-					EndLine:    seqPoint.EndLine,
-					EndCol:     seqPoint.EndCol,
-					Statements: 1,
-					IsCovered:  false,
+			statements := seqPoint.EndLine - seqPoint.StartLine + 1
+			docStr := di.Documents[seqPoint.Document]
+			if isValidDocument(seqPoint.Document, docs) {
+				cover.Blocks[docStr] = append(cover.Blocks[docStr], testing.CoverBlock{
+					Line0: uint32(seqPoint.StartLine),
+					Col0:  uint16(seqPoint.StartCol),
+					Line1: uint32(seqPoint.EndLine),
+					Col1:  uint16(seqPoint.EndCol),
+					Stmts: uint16(statements),
 				})
+				cover.Opcodes[docStr] = append(cover.Opcodes[docStr], seqPoint.Opcode)
 			}
 		}
 	}
-	return res
+	for doc, seqPoints := range cover.Blocks {
+		if hasNoCounters(doc) {
+			cover.Counters[doc] = make([]uint32, len(seqPoints))
+		}
+	}
 }
 
 // isValidDocument checks if document index exists in an array of document indexes.
@@ -84,44 +90,96 @@ func isValidDocument(iDocToCheck int, docs []int) bool {
 	return false
 }
 
+func hasNoBlocks(doc string) bool {
+	if _, exists := cover.Blocks[doc]; exists {
+		return false
+	}
+	return true
+}
+
+func hasNoCounters(doc string) bool {
+	if _, exists := cover.Counters[doc]; exists {
+		return false
+	}
+	return true
+}
+
 // countInstructions finds for every instruction a corresponding sequence point and sets IsCovered flag to true.
-func countInstructions(cov []coverline, codes []InstrHash) {
-	for i := range cov {
-		for _, code := range codes {
-			if code.Offset == cov[i].Opcode {
-				cov[i].IsCovered = true
-			}
+func countInstructions(diDocs []string, validDocs []int, instrs []InstrHash) {
+	sValidDocs := getValidStrDocs(diDocs, validDocs)
+	for doc, ops := range cover.Opcodes {
+		if isValidStrDoc(doc, sValidDocs) {
+			cover.Counters[doc] = getNewCounts(doc, ops, instrs)
 		}
 	}
 }
 
-// printToFile writes coverlines to file.
-func printToFile(t testing.TB, cov []coverline, name string) {
-	mu.Lock()
-	defer mu.Unlock()
+func getNewCounts(doc string, ops []int, instrs []InstrHash) []uint32 {
+	counts := cover.Counters[doc]
+	for _, instr := range instrs {
+		for i, op := range ops {
+			if instr.Offset == op {
+				counts[i]++
+			}
+		}
+	}
+	return counts
+}
 
-	f, err := os.OpenFile(name, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+func getValidStrDocs(diDocs []string, validDocs []int) []string {
+	res := make([]string, len(validDocs))
+	for i, iDoc := range validDocs {
+		res[i] = diDocs[iDoc]
+	}
+	return res
+}
+
+func isValidStrDoc(docToCheck string, docs []string) bool {
+	for _, doc := range docs {
+		if doc == docToCheck {
+			return true
+		}
+	}
+	return false
+}
+
+// printToFile writes coverage info to file.
+func printToFile(t testing.TB, name string) {
+	fileName := name
+	if fileName == "" {
+		// if no specific file name was provided, the output file
+		// will have formatted timestamp with no spaces as its name
+		fileName = fmt.Sprintf("%s.out", time.Now().Format(time.RFC3339Nano))
+	}
+
+	f, err := os.OpenFile(fileName, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0600)
 	require.NoError(t, err)
 
 	defer f.Close()
 
-	fi, err := os.Stat(name)
-	require.NoError(t, err)
-	firstToWrite := ""
-	if fi.Size() == 0 {
-		firstToWrite = "mode: set\n"
-	}
-
-	_, err = f.WriteString(firstToWrite)
+	_, err = f.WriteString("mode: set\n")
 	require.NoError(t, err)
 
-	for _, info := range cov {
-		covered := 0
-		if info.IsCovered {
-			covered++
+	var count uint32
+	for name, counts := range cover.Counters {
+		blocks := cover.Blocks[name]
+		for i := range counts {
+			stmts := int64(blocks[i].Stmts)
+			count = counts[i]
+
+			// mode: set
+			if count != 0 {
+				count = 1
+			}
+			if f != nil && stmts == 1 {
+				_, err := fmt.Fprintf(f, "%s:%d.%d,%d.%d %d %d\n", name,
+					blocks[i].Line0, blocks[i].Col0,
+					blocks[i].Line1, blocks[i].Col1,
+					stmts,
+					count)
+				require.NoError(t, err)
+			}
 		}
-		line := fmt.Sprintf("%s:%d.%d,%d.%d %d %d\n", info.Doc, info.StartLine, info.StartCol, info.EndLine, info.EndCol, info.Statements, covered)
-		_, err = f.WriteString(line)
-		require.NoError(t, err)
 	}
+
 }
