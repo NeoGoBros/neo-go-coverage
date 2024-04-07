@@ -5,5 +5,6 @@
 This single command should set up the workspace and run the tests
 
 ```
-go test .
+cd tests
+go test
 ```
