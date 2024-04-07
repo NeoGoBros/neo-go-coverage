@@ -80,7 +80,7 @@ func (c *ContractInvoker) SignTx(t testing.TB, tx *transaction.Transaction, sysF
 			Scopes:  transaction.Global,
 		})
 	}
-	neotest.AddNetworkFee(c.Chain, tx, signers...)
+	neotest.AddNetworkFee(t, c.Chain, tx, signers...)
 	c.AddSystemFee(c.Chain, tx, sysFee, method)
 
 	for _, acc := range signers {
