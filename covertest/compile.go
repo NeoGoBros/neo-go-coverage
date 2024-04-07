@@ -19,8 +19,14 @@ type ContractWithDebugInfo struct {
 	DebugInfo *compiler.DebugInfo
 }
 
-// CompileFile compiles a contract from the file and returns its NEF, manifest, hash and debug information.
-func CompileFile(t testing.TB, sender util.Uint160, srcPath string, configPath string) *ContractWithDebugInfo {
+// CompileFile compiles a contract from the file and returns its NEF,
+// manifest, hash and debug information.
+func CompileFile(
+	t testing.TB,
+	sender util.Uint160,
+	srcPath string,
+	configPath string,
+) *ContractWithDebugInfo {
 	// nef.NewFile() cares about version a lot.
 	config.Version = "neotest"
 

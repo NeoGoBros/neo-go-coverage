@@ -84,10 +84,27 @@ func TestRun(t *testing.T) {
 	require.Equal(t, origRunVM.Estack().Len(), covertestRunVM.Estack().Len())
 }
 
-func setUpVMForPut(t *testing.T, e *neotest.Executor, contract *neotest.Contract, hasResult bool, methodOff int, num int, key []byte) (v *vm.VM) {
+func setUpVMForPut(
+	t *testing.T,
+	e *neotest.Executor,
+	contract *neotest.Contract,
+	hasResult bool,
+	methodOff int,
+	num int,
+	key []byte,
+) (v *vm.VM) {
 	ic, err := e.Chain.GetTestVM(trigger.Application, nil, nil)
 	require.NoError(t, err)
-	ic.VM.LoadNEFMethod(contract.NEF, contract.Hash, contract.Hash, callflag.All, hasResult, methodOff, -1, nil)
+	ic.VM.LoadNEFMethod(
+		contract.NEF,
+		contract.Hash,
+		contract.Hash,
+		callflag.All,
+		hasResult,
+		methodOff,
+		-1,
+		nil,
+	)
 	ic.VM.Context().Estack().PushVal(num)
 	ic.VM.Context().Estack().PushVal(key)
 	return ic.VM

@@ -21,7 +21,12 @@ type Cover struct {
 var cover = &Cover{}
 
 // MakeCoverage generates an output file with coverage info in correct format.
-func (c *ContractInvoker) MakeCoverage(t testing.TB, ctrdi *ContractWithDebugInfo, substr string, fileName string) {
+func (c *ContractInvoker) MakeCoverage(
+	t testing.TB,
+	ctrdi *ContractWithDebugInfo,
+	substr string,
+	fileName string,
+) {
 	cover.Lock()
 	defer cover.Unlock()
 	if cover.Opcodes == nil {
@@ -104,7 +109,8 @@ func hasNoCounters(doc string) bool {
 	return true
 }
 
-// countInstructions finds for every instruction a corresponding sequence point and sets IsCovered flag to true.
+// countInstructions finds for every instruction a corresponding sequence point
+// and sets IsCovered flag to true.
 func countInstructions(diDocs []string, validDocs []int, instrs []InstrHash) {
 	sValidDocs := getValidStrDocs(diDocs, validDocs)
 	for doc, ops := range cover.Opcodes {
