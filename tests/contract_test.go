@@ -2,12 +2,12 @@ package contract
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"path"
 	"testing"
 
 	"git.frostfs.info/TrueCloudLab/contract-coverage-primer/covertest"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
@@ -69,7 +69,7 @@ func TestRun(t *testing.T) {
 	covertestRunVM := setUpVMForPut(t, e, ctrDI.Contract, hasResult, startOffsetPutNumber, someNum, invalidKey)
 	res, covErr := covertest.Run(covertestRunVM)
 	t.Log("Printing collected instructions:")
-	spew.Dump(res)
+	dumpCoveredInstructions(res, "PutNumber")
 	t.Log("covertest.Run() returned an error: ", covErr)
 
 	// set up a VM for vm.Run()
@@ -82,6 +82,14 @@ func TestRun(t *testing.T) {
 
 	// check if the number of elements on the stack is the same
 	require.Equal(t, origRunVM.Estack().Len(), covertestRunVM.Estack().Len())
+}
+
+func dumpCoveredInstructions(instructions []covertest.InstrHash, functionName string) {
+	fmt.Printf("=== Covered instructions of the '%s' function\n", functionName)
+	println("INDEX\t OPCODE")
+	for _, instruction := range instructions {
+		println(instruction.Offset, "\t", instruction.Instruction.String())
+	}
 }
 
 func setUpVMForPut(
