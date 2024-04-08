@@ -21,3 +21,11 @@ cd experiment
 ## Comparison results
 
 Idk 🙃. Everything seems fine
+
+## HTML
+
+in `tests/` dir:
+
+```sh
+go test && go tool cover -html=c.out
+```
