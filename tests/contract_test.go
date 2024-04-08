@@ -53,35 +53,46 @@ func TestContract(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
-	e := newExecutor(t)
-	ctrDI := covertest.CompileFile(t, e.CommitteeHash, ctrPath, path.Join(ctrPath, "config.yml"))
-	e.DeployContract(t, ctrDI.Contract, nil)
+    tests := []struct {
+        function string
+    }{
+        {"PutNumber"},
+        {"GetNumber"},
+    }
+    for _, test := range tests {
+        test := test
+        t.Run(test.function, func(t *testing.T) {
+			e := newExecutor(t)
+			ctrDI := covertest.CompileFile(t, e.CommitteeHash, ctrPath, path.Join(ctrPath, "config.yml"))
+			e.DeployContract(t, ctrDI.Contract, nil)
 
-	startOffsetPutNumber, err := getStartOffset(ctrDI.DebugInfo, "PutNumber")
-	require.NoError(t, err)
+			startOffsetPutNumber, err := getStartOffset(ctrDI.DebugInfo, test.function)
+			require.NoError(t, err)
 
-	hasResult, err := hasResult(ctrDI.DebugInfo, "PutNumber")
-	require.NoError(t, err)
+			hasResult, err := hasResult(ctrDI.DebugInfo, test.function)
+			require.NoError(t, err)
 
-	someNum := getNumToPut()
+			someNum := getNumToPut()
 
-	// set up a VM for covertest.Run()
-	covertestRunVM := setUpVMForPut(t, e, ctrDI.Contract, hasResult, startOffsetPutNumber, someNum, invalidKey)
-	res, covErr := covertest.Run(covertestRunVM)
-	t.Log("Printing collected instructions:")
-	dumpCoveredInstructions(res, "PutNumber")
-	t.Log("covertest.Run() returned an error: ", covErr)
+			// set up a VM for covertest.Run()
+			covertestRunVM := setUpVMForPut(t, e, ctrDI.Contract, hasResult, startOffsetPutNumber, someNum, invalidKey)
+			res, covErr := covertest.Run(covertestRunVM)
+			t.Log("Printing collected instructions:")
+			dumpCoveredInstructions(res, test.function)
+			t.Log("covertest.Run() returned an error: ", covErr)
 
-	// set up a VM for vm.Run()
-	origRunVM := setUpVMForPut(t, e, ctrDI.Contract, hasResult, startOffsetPutNumber, someNum, invalidKey)
-	runerr := origRunVM.Run()
-	t.Log("vm.Run() returned an error: ", covErr)
+			// set up a VM for vm.Run()
+			origRunVM := setUpVMForPut(t, e, ctrDI.Contract, hasResult, startOffsetPutNumber, someNum, invalidKey)
+			runerr := origRunVM.Run()
+			t.Log("vm.Run() returned an error: ", covErr)
 
-	// check if errors are the same
-	require.Equal(t, runerr.Error(), covErr.Error())
+			// check if errors are the same
+			require.Equal(t, runerr.Error(), covErr.Error())
 
-	// check if the number of elements on the stack is the same
-	require.Equal(t, origRunVM.Estack().Len(), covertestRunVM.Estack().Len())
+			// check if the number of elements on the stack is the same
+			require.Equal(t, origRunVM.Estack().Len(), covertestRunVM.Estack().Len())
+        })
+    }
 }
 
 func dumpCoveredInstructions(instructions []covertest.InstrHash, functionName string) {
