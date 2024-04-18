@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/stretchr/testify/require"
 )
+
+var mu sync.Mutex
 
 type coverline struct {
 	Doc       string
@@ -91,6 +94,9 @@ func countInstructions(cov []coverline, codes []InstrHash) {
 }
 
 func printToFile(t testing.TB, cov []coverline, name string) {
+	mu.Lock()
+	defer mu.Unlock()
+
 	f, err := os.OpenFile(name, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	require.NoError(t, err)
 
