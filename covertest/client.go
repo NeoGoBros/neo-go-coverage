@@ -16,11 +16,14 @@ import (
 )
 
 // ContractInvoker is a client for a specific contract.
+// It also accumulates all executed instructions for evry method invokation.
+// Original ContractInvoker: https://github.com/nspcc-dev/neo-go/blob/master/pkg/neotest/client.go
 type ContractInvoker struct {
 	*neotest.ContractInvoker
 	Methods []Method
 }
 
+// Method maps method name with executed instructions.
 type Method struct {
 	Name         string
 	Instructions []InstrHash
