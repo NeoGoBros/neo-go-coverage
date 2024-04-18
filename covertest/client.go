@@ -44,10 +44,6 @@ func CommitteeInvoker(e *neotest.Executor, h util.Uint160) *ContractInvoker {
 // Invoke invokes the method with the args, persists the transaction and checks the result.
 // Returns transaction hash.
 func (c *ContractInvoker) Invoke(t testing.TB, result interface{}, method string, args ...interface{}) util.Uint256 {
-	c.Methods = append(c.Methods, Method{
-		Name:         method,
-		Instructions: nil,
-	})
 	tx := c.PrepareInvoke(t, method, args...)
 	c.AddNewBlock(t, tx)
 	c.CheckHalt(t, tx.Hash(), stackitem.Make(result))
@@ -57,10 +53,6 @@ func (c *ContractInvoker) Invoke(t testing.TB, result interface{}, method string
 // InvokeFail invokes the method with the args, persists the transaction and checks the error message.
 // It returns the transaction hash.
 func (c *ContractInvoker) InvokeFail(t testing.TB, message string, method string, args ...interface{}) util.Uint256 {
-	c.Methods = append(c.Methods, Method{
-		Name:         method,
-		Instructions: nil,
-	})
 	tx := c.PrepareInvoke(t, method, args...)
 	c.AddNewBlock(t, tx)
 	c.CheckFault(t, tx.Hash(), message)
@@ -77,11 +69,11 @@ func (c *ContractInvoker) PrepareInvoke(t testing.TB, method string, args ...int
 func (c *ContractInvoker) NewTx(t testing.TB, signers []neotest.Signer,
 	hash util.Uint160, method string, args ...interface{}) *transaction.Transaction {
 	tx := c.NewUnsignedTx(t, hash, method, args...)
-	return c.SignTx(t, tx, -1, signers...)
+	return c.SignTx(t, tx, -1, method, signers...)
 }
 
 // SignTx signs a transaction using the provided signers.
-func (c *ContractInvoker) SignTx(t testing.TB, tx *transaction.Transaction, sysFee int64, signers ...neotest.Signer) *transaction.Transaction {
+func (c *ContractInvoker) SignTx(t testing.TB, tx *transaction.Transaction, sysFee int64, method string, signers ...neotest.Signer) *transaction.Transaction {
 	for _, acc := range signers {
 		tx.Signers = append(tx.Signers, transaction.Signer{
 			Account: acc.ScriptHash(),
@@ -89,7 +81,7 @@ func (c *ContractInvoker) SignTx(t testing.TB, tx *transaction.Transaction, sysF
 		})
 	}
 	neotest.AddNetworkFee(c.Chain, tx, signers...)
-	c.AddSystemFee(c.Chain, tx, sysFee)
+	c.AddSystemFee(c.Chain, tx, sysFee, method)
 
 	for _, acc := range signers {
 		require.NoError(t, acc.SignTx(c.Chain.GetConfig().Magic, tx))
@@ -99,15 +91,17 @@ func (c *ContractInvoker) SignTx(t testing.TB, tx *transaction.Transaction, sysF
 
 // AddSystemFee adds system fee to the transaction. If negative value specified,
 // then system fee is defined by test invocation.
-func (c *ContractInvoker) AddSystemFee(bc *core.Blockchain, tx *transaction.Transaction, sysFee int64) {
+func (c *ContractInvoker) AddSystemFee(bc *core.Blockchain, tx *transaction.Transaction, sysFee int64, method string) {
 	if sysFee >= 0 {
 		tx.SystemFee = sysFee
 		return
 	}
 	ops, v, _ := TestInvoke(bc, tx) // ignore error to support failing transactions
 	tx.SystemFee = v.GasConsumed()
-	c.Methods[len(c.Methods)-1].Instructions = make([]InstrHash, len(ops))
-	copy(c.Methods[len(c.Methods)-1].Instructions, ops)
+	c.Methods = append(c.Methods, Method{
+		Name:         method,
+		Instructions: ops,
+	})
 }
 
 // TestInvoke creates a test VM with a dummy block and executes a transaction in it.
